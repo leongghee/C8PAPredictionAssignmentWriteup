@@ -1,0 +1,111 @@
+---
+title: "C8PA Prediction Assignment Writeup"
+author: "LG Chew"
+date: "May 30, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Introduction
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, Our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+
+#Data
+The training data for this project are available here:
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv>
+
+The test data are available here:
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv>
+
+The data for this project come from this source:
+<http://groupware.les.inf.puc-rio.br/har>
+
+
+#Data processing
+
+###Loading packages
+
+```{r}
+library(caret)
+library(rpart)
+library(rattle)
+library(randomForest)
+```
+
+###Reading data
+Set seed so that this can be reproduced. Reading the data.
+
+```{r}
+set.seed(126)
+training <- read.csv("pml-training.csv",na.strings = c("#DIV/0!","NA",""))
+testing <- read.csv("pml-testing.csv",na.strings = c("#DIV/0!","NA",""))
+```
+
+### Cleaning data
+Some of the data has NAs. We are only selecting data where there is totally no invalid info.
+
+```{r}
+training <-training[,colSums(is.na(training))==0]
+testing <-testing[,colSums(is.na(testing))==0]
+```
+
+Removing the identifying columns which we do not use for this analysis, for example username, date, etc.
+
+```{r}
+training <- training[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+```
+
+### Creating the train set and test set
+Train set and test set are created using the training data.
+60% of training data is used for train set, while remaining 40% for test set.
+
+```{r}
+inTrain <- createDataPartition(training$classe, p = 0.60, list = FALSE)
+TrainSet = training[ inTrain,]
+TestSet = training[-inTrain,]
+dim(TrainSet)
+dim(TestSet)
+```
+
+#Model Fitting 1 - Desicion Tree
+First, we try to fit the model using decision tree method.
+
+```{r}
+modelTree <- rpart(classe ~ .,data = TrainSet, method = "class")
+fancyRpartPlot(modelTree)
+```
+
+We then use the model to predict our test set.
+
+```{r}
+predictTree <- predict(modelTree, newdata = TestSet, type = "class")
+confusionMatrix(predictTree,TestSet$classe)
+```
+
+#Model Fitting 2 - Random Forest
+Next, we try to fit the model using random forest method.
+
+```{r}
+modelForest <- randomForest(classe ~ ., data = TrainSet)
+predictForest <- predict(modelForest, newdata = TestSet, type = "class")
+confusionMatrix(predictForest,TestSet$classe)
+```
+
+Accuracy result:
+
+- Decision tree = 0.7367
+- Random forest = 0.995
+
+Based on the accuracy result, random forest is a better model with higher accuracy.
+
+#Prediction
+We will use the random forest model to predict the test data as shown below.
+
+```{r}
+predictTest <- predict(modelForest, newdata = testing)
+predictTest
+```
